@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>پیش‌بینی جام جهانی</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700;900&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Vazirmatn',sans-serif;background:#000;color:#fff;min-height:100vh}
+.container{max-width:860px;margin:0 auto;padding:16px}
+header{text-align:center;padding:30px 0 20px}
+.trophy{font-size:3.5rem;display:block;animation:float 3s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+h1{font-size:2rem;font-weight:900;background:linear-gradient(135deg,#FFD700,#FFA500);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+header p{color:rgba(255,255,255,0.4);font-size:.9rem;margin-top:6px}
+.tabs{display:flex;background:rgba(255,255,255,0.05);border:1px solid rgba(255,215,0,0.2);border-radius:14px;padding:5px;margin:20px 0;gap:4px}
+.tab{flex:1;padding:10px 4px;text-align:center;border-radius:10px;cursor:pointer;font-family:'Vazirmatn',sans-serif;font-size:.78rem;font-weight:600;color:rgba(255,255,255,0.4);background:none;border:none;transition:all .3s}
+.tab.active{background:linear-gradient(135deg,#FFD700,#FFA500);color:#000}
+.panel{display:none}.panel.active{display:block}
+.card{background:rgba(255,255,255,0.05);border:1px solid rgba(255,215,0,0.15);border-radius:18px;padding:20px;margin-bottom:14px}
+.card-title{color:#FFD700;font-weight:700;margin-bottom:16px;font-size:.95rem}
+.match-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:16px;margin-bottom:10px;position:relative}
+.match-card.locked{opacity:.6}
+.lock-badge{position:absolute;top:10px;left:10px;font-size:.7rem;background:rgba(255,23,68,.15);border:1px solid rgba(255,23,68,.3);color:#ff6b6b;padding:2px 8px;border-radius:20px}
+.match-stage{font-size:.72rem;color:#FFD700;background:rgba(255,215,0,0.1);padding:3px 10px;border-radius:20px}
+.match-date{font-size:.7rem;color:rgba(255,255,255,.35);margin-right:8px}
+.match-teams{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;margin:12px 0}
+.team{display:flex;flex-direction:column;align-items:center;gap:4px}
+.team-flag{font-size:1.8rem}
+.team-name{font-size:.8rem;font-weight:600;text-align:center}
+.vs{background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-weight:900;font-size:.7rem;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.score-row{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center}
+.score-input{width:100%;background:rgba(255,255,255,0.08);border:2px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px;text-align:center;color:#fff;font-size:1.3rem;font-weight:700;font-family:'Vazirmatn',sans-serif;outline:none;transition:border-color .3s}
+.score-input:focus{border-color:#FFD700}
+.score-input:disabled{opacity:.4;cursor:not-allowed}
+.score-div{text-align:center;color:rgba(255,255,255,0.3);font-size:1.1rem;font-weight:700}
+.player-tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.ptab{padding:8px 16px;border-radius:10px;cursor:pointer;font-family:'Vazirmatn',sans-serif;font-size:.85rem;font-weight:600;border:2px solid transparent;transition:all .3s}
+.ptab[data-p="0"]{background:rgba(255,100,100,.1);border-color:rgba(255,100,100,.3);color:#ff6b6b}
+.ptab[data-p="1"]{background:rgba(100,200,255,.1);border-color:rgba(100,200,255,.3);color:#64c8ff}
+.ptab[data-p="2"]{background:rgba(100,255,150,.1);border-color:rgba(100,255,150,.3);color:#64ff96}
+.ptab.active[data-p="0"]{background:rgba(255,100,100,.35);border-color:#ff6b6b}
+.ptab.active[data-p="1"]{background:rgba(100,200,255,.35);border-color:#64c8ff}
+.ptab.active[data-p="2"]{background:rgba(100,255,150,.35);border-color:#64ff96}
+.btn{background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;border:none;padding:13px 24px;border-radius:12px;font-family:'Vazirmatn',sans-serif;font-size:.95rem;font-weight:700;cursor:pointer;width:100%;margin-top:8px;transition:all .3s}
+.btn:hover{opacity:.9}
+.btn-outline{background:transparent;border:2px solid #FFD700;color:#FFD700}
+.btn-danger{background:rgba(255,23,68,.15);border:2px solid rgba(255,23,68,.4);color:#ff1744}
+.lb-item{display:flex;align-items:center;gap:14px;padding:16px;border-radius:14px;margin-bottom:10px}
+.lb-1{background:linear-gradient(135deg,rgba(255,215,0,.12),rgba(255,165,0,.04));border:1px solid rgba(255,215,0,.35)}
+.lb-2{background:rgba(255,255,255,.04);border:1px solid rgba(192,192,192,.25)}
+.lb-3{background:rgba(255,255,255,.03);border:1px solid rgba(205,127,50,.25)}
+.lb-rank{font-size:1.6rem;width:36px;text-align:center}
+.lb-info{flex:1}
+.lb-name{font-weight:700}
+.lb-stats{font-size:.75rem;color:rgba(255,255,255,.4);margin-top:2px}
+.lb-pts{font-size:1.8rem;font-weight:900;background:linear-gradient(135deg,#FFD700,#FFA500);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.pts-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.pts-item{background:rgba(255,255,255,.04);border-radius:10px;padding:12px;text-align:center}
+.pts-num{font-size:1.4rem;font-weight:900;color:#FFD700}
+.pts-label{font-size:.72rem;color:rgba(255,255,255,.4);margin-top:3px}
+.hist-item{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:14px;margin-bottom:10px}
+.hist-match{font-weight:700;margin-bottom:6px}
+.hist-result{color:#FFD700;font-size:.85rem;margin-bottom:10px}
+.preds-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.pred-box{text-align:center;padding:8px;border-radius:8px;font-size:.78rem}
+.pred-box.ok{background:rgba(0,230,118,.12);border:1px solid rgba(0,230,118,.25)}
+.pred-box.fail{background:rgba(255,23,68,.08);border:1px solid rgba(255,23,68,.15)}
+.pred-score{font-weight:700;font-size:.95rem;margin-top:3px}
+.pred-pts{font-size:.72rem;margin-top:2px;color:#00e676}
+.pred-box.fail .pred-pts{color:rgba(255,255,255,.3)}
+.input-group{margin-bottom:14px}
+.input-label{font-size:.82rem;color:rgba(255,255,255,.5);margin-bottom:6px;display:block}
+.input-field{width:100%;background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.1);border-radius:10px;padding:11px 14px;color:#fff;font-family:'Vazirmatn',sans-serif;font-size:.9rem;outline:none;transition:border-color .3s;text-align:right}
+.input-field:focus{border-color:#FFD700}
+.empty{text-align:center;padding:40px;color:rgba(255,255,255,.3)}
+.empty-icon{font-size:2.5rem;margin-bottom:10px}
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(100px);background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;padding:12px 24px;border-radius:50px;font-weight:700;font-size:.88rem;z-index:1000;transition:transform .4s cubic-bezier(.34,1.56,.64,1);white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0)}
+#loading{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:14px}
+.spinner{width:38px;height:38px;border:3px solid rgba(255,215,0,.2);border-top-color:#FFD700;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#app{display:none}
+.info-bar{display:flex;align-items:center;gap:8px;background:rgba(255,215,0,.08);border:1px solid rgba(255,215,0,.15);border-radius:10px;padding:10px 14px;font-size:.82rem;color:rgba(255,255,255,.6);margin-bottom:16px}
+.section-label{color:rgba(255,255,255,.35);font-size:.75rem;margin:16px 0 10px;letter-spacing:1px}
+.result-badge{display:inline-block;background:rgba(0,230,118,.15);border:1px solid rgba(0,230,118,.3);color:#00e676;font-size:.72rem;padding:2px 8px;border-radius:20px;margin-right:6px}
+.auto-badge{display:inline-block;background:rgba(100,200,255,.15);border:1px solid rgba(100,200,255,.3);color:#64c8ff;font-size:.72rem;padding:2px 8px;border-radius:20px}
+.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.8);z-index:500;align-items:center;justify-content:center}
+.modal.open{display:flex}
+.modal-box{background:#111;border:1px solid rgba(255,215,0,.3);border-radius:20px;padding:28px;width:90%;max-width:340px}
+.modal-title{font-size:1.1rem;font-weight:700;color:#FFD700;margin-bottom:16px;text-align:center}
+.pw-input{width:100%;background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.15);border-radius:10px;padding:12px;color:#fff;font-family:'Vazirmatn',sans-serif;font-size:1rem;outline:none;text-align:center;letter-spacing:4px}
+.pw-input:focus{border-color:#FFD700}
+.modal-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.sync-bar{display:flex;align-items:center;justify-content:space-between;background:rgba(100,200,255,.05);border:1px solid rgba(100,200,255,.15);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:.82rem}
+.sync-status{color:#64c8ff}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <span style="font-size:3rem">🏆</span>
+  <span style="color:rgba(255,255,255,.5);font-size:.9rem">در حال اتصال...</span>
+  <div class="spinner"></div>
+</div>
+
+<!-- Password Modal -->
+<div class="modal" id="pw-modal">
+  <div class="modal-box">
+    <div class="modal-title" id="pw-modal-title">تأیید هویت</div>
+    <input class="pw-input" type="password" id="pw-input" placeholder="••••">
+    <div id="pw-error" style="color:#ff6b6b;font-size:.8rem;text-align:center;margin-top:8px;min-height:20px"></div>
+    <div class="modal-btns">
+      <button class="btn btn-outline" onclick="closePwModal()" style="margin:0">انصراف</button>
+      <button class="btn" onclick="confirmPw()" style="margin:0">تأیید</button>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+<div class="container">
+  <header>
+    <span class="trophy">🏆</span>
+    <h1>پیش‌بینی جام جهانی ۲۰۲۶</h1>
+    <p id="subtitle">در حال بارگذاری...</p>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('leaderboard')">🥇 جدول</button>
+    <button class="tab" onclick="switchTab('predict')">⚽ پیش‌بینی</button>
+    <button class="tab" onclick="switchTab('history')">📜 تاریخچه</button>
+    <button class="tab" onclick="switchTab('settings')">⚙️ تنظیمات</button>
+  </div>
+
+  <div class="panel active" id="panel-leaderboard">
+    <div id="lb-content"></div>
+    <div class="card">
+      <div class="card-title">📌 امتیازدهی</div>
+      <div class="pts-grid">
+        <div class="pts-item"><div class="pts-num">3</div><div class="pts-label">نتیجه دقیق</div></div>
+        <div class="pts-item"><div class="pts-num">1</div><div class="pts-label">برنده درست</div></div>
+        <div class="pts-item"><div class="pts-num">0</div><div class="pts-label">اشتباه</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-predict">
+    <div class="info-bar">👤 پیش‌بینی برای: <strong id="ap-name" style="color:#FFD700">—</strong></div>
+    <div class="player-tabs" id="player-tabs"></div>
+    <div id="predict-content"></div>
+  </div>
+
+  <div class="panel" id="panel-history">
+    <div class="sync-bar">
+      <span>🔄 نتایج خودکار از اینترنت</span>
+      <button onclick="syncResults()" style="background:rgba(100,200,255,.15);border:1px solid rgba(100,200,255,.3);color:#64c8ff;padding:5px 12px;border-radius:8px;font-family:Vazirmatn,sans-serif;font-size:.78rem;cursor:pointer">بروزرسانی</button>
+    </div>
+    <div id="history-content"></div>
+  </div>
+
+  <div class="panel" id="panel-settings">
+    <div class="card">
+      <div class="card-title">🔐 پسوردها</div>
+      <p style="font-size:.82rem;color:rgba(255,255,255,.5);margin-bottom:14px">هر نفر با پسورد خودش پیش‌بینی ثبت می‌کنه</p>
+      <div id="pw-settings"></div>
+      <button class="btn" onclick="savePws()">💾 ذخیره پسوردها</button>
+    </div>
+    <div class="card">
+      <div class="card-title">👥 اسم بازیکنان</div>
+      <div id="settings-content"></div>
+      <button class="btn" onclick="savePlayers()">💾 ذخیره اسامی</button>
+    </div>
+    <div class="card">
+      <div class="card-title">🗑️ پاک کردن داده‌ها</div>
+      <button class="btn btn-danger" onclick="resetAll()">پاک کردن همه</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+firebase.initializeApp({
+  apiKey:"AIzaSyA8bZ2wzZlxLS_wbzxdnfas1t6At6nieLg",
+  authDomain:"wc-predict-1680c.firebaseapp.com",
+  databaseURL:"https://wc-predict-1680c-default-rtdb.firebaseio.com",
+  projectId:"wc-predict-1680c",
+  storageBucket:"wc-predict-1680c.firebasestorage.app",
+  messagingSenderId:"53368240728",
+  appId:"1:53368240728:web:4ffb1d1cf817960630682d"
+});
+var db = firebase.database();
+
+var FOOTBALL_API_TOKEN = '0c191bde5e5e41b8b6a9edd30bc2c73b';
+
+var MATCHES = [
+  {id:1,t1:'مکزیک',t2:'آفریقای جنوبی',f1:'🇲🇽',f2:'🇿🇦',stage:'گروه A',date:'2026-06-11T19:00:00'},
+  {id:2,t1:'کره جنوبی',t2:'چکیا',f1:'🇰🇷',f2:'🇨🇿',stage:'گروه A',date:'2026-06-11T22:00:00'},
+  {id:3,t1:'کانادا',t2:'بوسنی',f1:'🇨🇦',f2:'🇧🇦',stage:'گروه B',date:'2026-06-12T19:00:00'},
+  {id:4,t1:'آمریکا',t2:'پاراگوئه',f1:'🇺🇸',f2:'🇵🇾',stage:'گروه D',date:'2026-06-12T22:00:00'},
+  {id:5,t1:'قطر',t2:'سوئیس',f1:'🇶🇦',f2:'🇨🇭',stage:'گروه B',date:'2026-06-13T19:00:00'},
+  {id:6,t1:'برزیل',t2:'مراکش',f1:'🇧🇷',f2:'🇲🇦',stage:'گروه C',date:'2026-06-13T22:00:00'},
+  {id:7,t1:'هائیتی',t2:'اسکاتلند',f1:'🇭🇹',f2:'🏴󠁧󠁢󠁳󠁣󠁴󠁿',stage:'گروه C',date:'2026-06-13T22:00:00'},
+  {id:8,t1:'استرالیا',t2:'ترکیه',f1:'🇦🇺',f2:'🇹🇷',stage:'گروه D',date:'2026-06-13T19:00:00'},
+  {id:9,t1:'آلمان',t2:'کوراسائو',f1:'🇩🇪',f2:'🇨🇼',stage:'گروه E',date:'2026-06-14T19:00:00'},
+  {id:10,t1:'ساحل عاج',t2:'اکوادور',f1:'🇨🇮',f2:'🇪🇨',stage:'گروه E',date:'2026-06-14T22:00:00'},
+  {id:11,t1:'هلند',t2:'ژاپن',f1:'🇳🇱',f2:'🇯🇵',stage:'گروه F',date:'2026-06-14T19:00:00'},
+  {id:12,t1:'تونس',t2:'اوکراین',f1:'🇹🇳',f2:'🇺🇦',stage:'گروه F',date:'2026-06-14T22:00:00'},
+  {id:13,t1:'اسپانیا',t2:'کاپ ورد',f1:'🇪🇸',f2:'🇨🇻',stage:'گروه H',date:'2026-06-15T22:00:00'},
+  {id:14,t1:'بلژیک',t2:'مصر',f1:'🇧🇪',f2:'🇪🇬',stage:'گروه G',date:'2026-06-15T19:00:00'},
+  {id:15,t1:'عربستان',t2:'اروگوئه',f1:'🇸🇦',f2:'🇺🇾',stage:'گروه H',date:'2026-06-15T19:00:00'},
+  {id:16,t1:'ایران',t2:'نیوزیلند',f1:'🇮🇷',f2:'🇳🇿',stage:'گروه G',date:'2026-06-15T22:00:00'},
+  {id:17,t1:'فرانسه',t2:'سنگال',f1:'🇫🇷',f2:'🇸🇳',stage:'گروه I',date:'2026-06-16T19:00:00'},
+  {id:18,t1:'عراق',t2:'نروژ',f1:'🇮🇶',f2:'🇳🇴',stage:'گروه I',date:'2026-06-16T22:00:00'},
+  {id:19,t1:'آرژانتین',t2:'الجزایر',f1:'🇦🇷',f2:'🇩🇿',stage:'گروه J',date:'2026-06-16T19:00:00'},
+  {id:20,t1:'اتریش',t2:'اردن',f1:'🇦🇹',f2:'🇯🇴',stage:'گروه J',date:'2026-06-16T22:00:00'},
+  {id:21,t1:'پرتغال',t2:'کنگو',f1:'🇵🇹',f2:'🇨🇩',stage:'گروه K',date:'2026-06-17T19:00:00'},
+  {id:22,t1:'انگلیس',t2:'کرواسی',f1:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',f2:'🇭🇷',stage:'گروه L',date:'2026-06-17T22:00:00'},
+  {id:23,t1:'غنا',t2:'پاناما',f1:'🇬🇭',f2:'🇵🇦',stage:'گروه L',date:'2026-06-17T19:00:00'},
+  {id:24,t1:'ازبکستان',t2:'کلمبیا',f1:'🇺🇿',f2:'🇨🇴',stage:'گروه K',date:'2026-06-17T22:00:00'},
+  {id:25,t1:'مکزیک',t2:'کره جنوبی',f1:'🇲🇽',f2:'🇰🇷',stage:'گروه A',date:'2026-06-18T19:00:00'},
+  {id:26,t1:'آفریقای جنوبی',t2:'چکیا',f1:'🇿🇦',f2:'🇨🇿',stage:'گروه A',date:'2026-06-18T22:00:00'},
+  {id:27,t1:'کانادا',t2:'قطر',f1:'🇨🇦',f2:'🇶🇦',stage:'گروه B',date:'2026-06-18T19:00:00'},
+  {id:28,t1:'بوسنی',t2:'سوئیس',f1:'🇧🇦',f2:'🇨🇭',stage:'گروه B',date:'2026-06-18T22:00:00'},
+  {id:29,t1:'برزیل',t2:'هائیتی',f1:'🇧🇷',f2:'🇭🇹',stage:'گروه C',date:'2026-06-19T19:00:00'},
+  {id:30,t1:'اسکاتلند',t2:'مراکش',f1:'🏴󠁧󠁢󠁳󠁣󠁴󠁿',f2:'🇲🇦',stage:'گروه C',date:'2026-06-19T22:00:00'},
+  {id:31,t1:'آمریکا',t2:'استرالیا',f1:'🇺🇸',f2:'🇦🇺',stage:'گروه D',date:'2026-06-19T19:00:00'},
+  {id:32,t1:'پاراگوئه',t2:'ترکیه',f1:'🇵🇾',f2:'🇹🇷',stage:'گروه D',date:'2026-06-19T22:00:00'},
+  {id:33,t1:'آلمان',t2:'ساحل عاج',f1:'🇩🇪',f2:'🇨🇮',stage:'گروه E',date:'2026-06-20T19:00:00'},
+  {id:34,t1:'اکوادور',t2:'کوراسائو',f1:'🇪🇨',f2:'🇨🇼',stage:'گروه E',date:'2026-06-20T22:00:00'},
+  {id:35,t1:'هلند',t2:'تونس',f1:'🇳🇱',f2:'🇹🇳',stage:'گروه F',date:'2026-06-20T19:00:00'},
+  {id:36,t1:'اوکراین',t2:'ژاپن',f1:'🇺🇦',f2:'🇯🇵',stage:'گروه F',date:'2026-06-20T22:00:00'},
+  {id:37,t1:'اسپانیا',t2:'عربستان',f1:'🇪🇸',f2:'🇸🇦',stage:'گروه H',date:'2026-06-21T19:00:00'},
+  {id:38,t1:'بلژیک',t2:'ایران',f1:'🇧🇪',f2:'🇮🇷',stage:'گروه G',date:'2026-06-21T22:00:00'},
+  {id:39,t1:'مصر',t2:'نیوزیلند',f1:'🇪🇬',f2:'🇳🇿',stage:'گروه G',date:'2026-06-21T19:00:00'},
+  {id:40,t1:'اروگوئه',t2:'کاپ ورد',f1:'🇺🇾',f2:'🇨🇻',stage:'گروه H',date:'2026-06-21T22:00:00'},
+  {id:41,t1:'فرانسه',t2:'عراق',f1:'🇫🇷',f2:'🇮🇶',stage:'گروه I',date:'2026-06-22T19:00:00'},
+  {id:42,t1:'سنگال',t2:'نروژ',f1:'🇸🇳',f2:'🇳🇴',stage:'گروه I',date:'2026-06-22T22:00:00'},
+  {id:43,t1:'آرژانتین',t2:'اتریش',f1:'🇦🇷',f2:'🇦🇹',stage:'گروه J',date:'2026-06-22T19:00:00'},
+  {id:44,t1:'اردن',t2:'الجزایر',f1:'🇯🇴',f2:'🇩🇿',stage:'گروه J',date:'2026-06-22T22:00:00'},
+  {id:45,t1:'پرتغال',t2:'ازبکستان',f1:'🇵🇹',f2:'🇺🇿',stage:'گروه K',date:'2026-06-23T19:00:00'},
+  {id:46,t1:'کلمبیا',t2:'کنگو',f1:'🇨🇴',f2:'🇨🇩',stage:'گروه K',date:'2026-06-23T22:00:00'},
+  {id:47,t1:'انگلیس',t2:'غنا',f1:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',f2:'🇬🇭',stage:'گروه L',date:'2026-06-23T19:00:00'},
+  {id:48,t1:'کرواسی',t2:'پاناما',f1:'🇭🇷',f2:'🇵🇦',stage:'گروه L',date:'2026-06-23T22:00:00'},
+  {id:49,t1:'مکزیک',t2:'چکیا',f1:'🇲🇽',f2:'🇨🇿',stage:'گروه A',date:'2026-06-24T19:00:00'},
+  {id:50,t1:'آفریقای جنوبی',t2:'کره جنوبی',f1:'🇿🇦',f2:'🇰🇷',stage:'گروه A',date:'2026-06-24T19:00:00'},
+  {id:51,t1:'کانادا',t2:'سوئیس',f1:'🇨🇦',f2:'🇨🇭',stage:'گروه B',date:'2026-06-24T22:00:00'},
+  {id:52,t1:'بوسنی',t2:'قطر',f1:'🇧🇦',f2:'🇶🇦',stage:'گروه B',date:'2026-06-24T19:00:00'},
+  {id:53,t1:'برزیل',t2:'اسکاتلند',f1:'🇧🇷',f2:'🏴󠁧󠁢󠁳󠁣󠁴󠁿',stage:'گروه C',date:'2026-06-25T19:00:00'},
+  {id:54,t1:'مراکش',t2:'هائیتی',f1:'🇲🇦',f2:'🇭🇹',stage:'گروه C',date:'2026-06-25T19:00:00'},
+  {id:55,t1:'آمریکا',t2:'ترکیه',f1:'🇺🇸',f2:'🇹🇷',stage:'گروه D',date:'2026-06-25T22:00:00'},
+  {id:56,t1:'پاراگوئه',t2:'استرالیا',f1:'🇵🇾',f2:'🇦🇺',stage:'گروه D',date:'2026-06-25T19:00:00'},
+  {id:57,t1:'آلمان',t2:'اکوادور',f1:'🇩🇪',f2:'🇪🇨',stage:'گروه E',date:'2026-06-26T19:00:00'},
+  {id:58,t1:'کوراسائو',t2:'ساحل عاج',f1:'🇨🇼',f2:'🇨🇮',stage:'گروه E',date:'2026-06-26T19:00:00'},
+  {id:59,t1:'هلند',t2:'اوکراین',f1:'🇳🇱',f2:'🇺🇦',stage:'گروه F',date:'2026-06-26T22:00:00'},
+  {id:60,t1:'ژاپن',t2:'تونس',f1:'🇯🇵',f2:'🇹🇳',stage:'گروه F',date:'2026-06-26T22:00:00'},
+  {id:61,t1:'نروژ',t2:'فرانسه',f1:'🇳🇴',f2:'🇫🇷',stage:'گروه I',date:'2026-06-26T19:00:00'},
+  {id:62,t1:'سنگال',t2:'عراق',f1:'🇸🇳',f2:'🇮🇶',stage:'گروه I',date:'2026-06-26T22:00:00'},
+  {id:63,t1:'کاپ ورد',t2:'عربستان',f1:'🇨🇻',f2:'🇸🇦',stage:'گروه H',date:'2026-06-26T19:00:00'},
+  {id:64,t1:'اروگوئه',t2:'اسپانیا',f1:'🇺🇾',f2:'🇪🇸',stage:'گروه H',date:'2026-06-26T22:00:00'},
+  {id:65,t1:'مصر',t2:'ایران',f1:'🇪🇬',f2:'🇮🇷',stage:'گروه G',date:'2026-06-26T19:00:00'},
+  {id:66,t1:'نیوزیلند',t2:'بلژیک',f1:'🇳🇿',f2:'🇧🇪',stage:'گروه G',date:'2026-06-26T22:00:00'},
+  {id:67,t1:'پاناما',t2:'انگلیس',f1:'🇵🇦',f2:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',stage:'گروه L',date:'2026-06-27T19:00:00'},
+  {id:68,t1:'کرواسی',t2:'غنا',f1:'🇭🇷',f2:'🇬🇭',stage:'گروه L',date:'2026-06-27T22:00:00'},
+  {id:69,t1:'کلمبیا',t2:'پرتغال',f1:'🇨🇴',f2:'🇵🇹',stage:'گروه K',date:'2026-06-27T19:00:00'},
+  {id:70,t1:'کنگو',t2:'ازبکستان',f1:'🇨🇩',f2:'🇺🇿',stage:'گروه K',date:'2026-06-27T22:00:00'},
+  {id:71,t1:'الجزایر',t2:'اتریش',f1:'🇩🇿',f2:'🇦🇹',stage:'گروه J',date:'2026-06-27T19:00:00'},
+  {id:72,t1:'اردن',t2:'آرژانتین',f1:'🇯🇴',f2:'🇦🇷',stage:'گروه J',date:'2026-06-27T22:00:00'}
+];
+
+var state = {players:['پوریا','بهنام','مهدی'], passwords:['1111','2222','3333'], activePlayer:0};
+var matches = [];
+var pwCallback = null;
+var pwPlayerIdx = -1;
+
+function toArr(v){ return v?(Array.isArray(v)?v:Object.values(v)):[];}
+
+function isLocked(m){
+  var d = new Date(m.date);
+  var now = new Date();
+  return now >= new Date(d.getTime() - 24*60*60*1000);
+}
+
+function fmtDate(dateStr){
+  var d = new Date(dateStr);
+  var months=['ژانویه','فوریه','مارس','آوریل','مه','ژوئن','ژوئیه','اوت','سپتامبر','اکتبر','نوامبر','دسامبر'];
+  return d.getDate()+' '+months[d.getMonth()]+' '+d.getHours()+':00';
+}
+
+db.ref('gameState').on('value', function(snap){
+  var data = snap.val();
+  if(data && data.matches){
+    var dbMatches = toArr(data.matches);
+    matches = MATCHES.map(function(m){
+      var dbm = dbMatches.find(function(x){return x&&x.id===m.id;});
+      return {
+        id:m.id,t1:m.t1,t2:m.t2,f1:m.f1,f2:m.f2,stage:m.stage,date:m.date,
+        result: dbm&&dbm.result ? dbm.result : null,
+        autoResult: dbm&&dbm.autoResult ? dbm.autoResult : null,
+        preds: dbm&&dbm.preds ? toArr(dbm.preds) : [null,null,null]
+      };
+    });
+    if(data.players) state.players = toArr(data.players);
+    if(data.passwords) state.passwords = toArr(data.passwords);
+  } else {
+    matches = MATCHES.map(function(m){
+      return {id:m.id,t1:m.t1,t2:m.t2,f1:m.f1,f2:m.f2,stage:m.stage,date:m.date,result:null,autoResult:null,preds:[null,null,null]};
+    });
+    saveAll();
+  }
+  document.getElementById('loading').style.display='none';
+  document.getElementById('app').style.display='block';
+  render();
+}, function(err){
+  document.getElementById('loading').innerHTML='<div style="text-align:center;color:#fff;padding:40px"><div style="font-size:2rem">⚠️</div><div style="color:#FFD700;margin-top:10px">خطا در اتصال</div><div style="color:rgba(255,255,255,.4);font-size:.8rem;margin-top:6px;direction:ltr">'+err.message+'</div></div>';
+});
+
+function saveAll(){
+  db.ref('gameState').update({
+    players: state.players,
+    passwords: state.passwords,
+    matches: matches.map(function(m){
+      return {id:m.id,result:m.result||null,autoResult:m.autoResult||null,preds:m.preds||[null,null,null]};
+    })
+  });
+}
+
+// ===== AUTO SYNC RESULTS =====
+function syncResults(){
+  showToast('در حال دریافت نتایج...');
+  fetch('https://api.football-data.org/v4/competitions/WC/matches?season=2026&stage=GROUP_STAGE', {
+    headers: {'X-Auth-Token': FOOTBALL_API_TOKEN}
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if(!data.matches){ showToast('داده‌ای دریافت نشد'); return; }
+    var updated = 0;
+    data.matches.forEach(function(apiMatch){
+      if(apiMatch.status !== 'FINISHED') return;
+      var g1 = apiMatch.score.fullTime.home;
+      var g2 = apiMatch.score.fullTime.away;
+      if(g1===null||g2===null) return;
+      var homeName = apiMatch.homeTeam.name;
+      var awayName = apiMatch.awayTeam.name;
+      var found = matches.find(function(m){
+        return m.t1.includes(homeName.substring(0,4)) || homeName.includes(m.t1.substring(0,3)) ||
+               m.t2.includes(awayName.substring(0,4)) || awayName.includes(m.t2.substring(0,3));
+      });
+      if(found && !found.result){
+        found.result = {g1:g1, g2:g2};
+        found.autoResult = true;
+        updated++;
+      }
+    });
+    if(updated > 0){
+      saveAll();
+      showToast(updated+' نتیجه بروز شد! ✓');
+    } else {
+      showToast('نتیجه جدیدی نبود');
+    }
+  })
+  .catch(function(e){ showToast('خطا در دریافت نتایج'); });
+}
+
+// ===== AUTO SYNC on load =====
+setTimeout(syncResults, 2000);
+
+function calcPts(pred,result){
+  if(!pred||!result) return 0;
+  if(pred.g1===result.g1&&pred.g2===result.g2) return 3;
+  var pw=pred.g1>pred.g2?1:pred.g1<pred.g2?-1:0;
+  var rw=result.g1>result.g2?1:result.g1<result.g2?-1:0;
+  return pw===rw?1:0;
+}
+
+function playerScore(pi){
+  var total=0,exact=0,correct=0;
+  matches.forEach(function(m){
+    if(m.result){
+      var pts=calcPts(m.preds[pi],m.result);
+      total+=pts; if(pts===3)exact++;else if(pts===1)correct++;
+    }
+  });
+  return {total:total,exact:exact,correct:correct};
+}
+
+var tabs=document.querySelectorAll('.tab');
+function switchTab(name){
+  tabs.forEach(function(t,i){t.classList.toggle('active',['leaderboard','predict','history','settings'][i]===name);});
+  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
+  document.getElementById('panel-'+name).classList.add('active');
+  render();
+}
+
+function render(){
+  renderLB(); renderPredict(); renderHistory(); renderSettings();
+  var pending=matches.filter(function(m){return !m.result;}).length;
+  document.getElementById('subtitle').textContent=pending+' بازی در انتظار نتیجه';
+}
+
+function renderLB(){
+  var scores=state.players.map(function(name,i){return Object.assign({name:name,i:i},playerScore(i));});
+  scores.sort(function(a,b){return b.total-a.total||b.exact-a.exact;});
+  var ranks=['🥇','🥈','🥉'];
+  if(!matches.some(function(m){return m.result;})){
+    document.getElementById('lb-content').innerHTML='<div class="empty"><div class="empty-icon">⏳</div><p>هنوز نتیجه‌ای ثبت نشده</p></div>';
+    return;
+  }
+  document.getElementById('lb-content').innerHTML=scores.map(function(s,r){
+    return '<div class="lb-item lb-'+(r+1)+'"><div class="lb-rank">'+ranks[r]+'</div><div class="lb-info"><div class="lb-name">'+s.name+'</div><div class="lb-stats">دقیق: '+s.exact+' • درست: '+s.correct+'</div></div><div class="lb-pts">'+s.total+'</div></div>';
+  }).join('');
+}
+
+function renderPredict(){
+  document.getElementById('ap-name').textContent=state.players[state.activePlayer];
+  document.getElementById('player-tabs').innerHTML=state.players.map(function(name,i){
+    return '<button class="ptab'+(state.activePlayer===i?' active':'')+'" data-p="'+i+'" onclick="requestPlayer('+i+')">'+name+'</button>';
+  }).join('');
+  var pending=matches.filter(function(m){return !m.result;});
+  if(!pending.length){document.getElementById('predict-content').innerHTML='<div class="empty"><div class="empty-icon">✅</div><p>همه بازی‌ها نتیجه داده‌اند</p></div>';return;}
+  document.getElementById('predict-content').innerHTML=pending.map(function(m){
+    var pred=m.preds[state.activePlayer];
+    var locked=isLocked(m);
+    return '<div class="match-card'+(locked?' locked':'')+'">'+
+      (locked?'<span class="lock-badge">🔒 قفل شده</span>':'')+
+      '<div style="margin-bottom:8px"><span class="match-stage">'+m.stage+'</span><span class="match-date"> | '+fmtDate(m.date)+'</span></div>'+
+      '<div class="match-teams"><div class="team"><div class="team-flag">'+m.f1+'</div><div class="team-name">'+m.t1+'</div></div><div class="vs">VS</div><div class="team"><div class="team-flag">'+m.f2+'</div><div class="team-name">'+m.t2+'</div></div></div>'+
+      '<div class="score-row">'+
+      '<input class="score-input" type="number" min="0" max="20" value="'+(pred?pred.g1:'')+'" placeholder="0"'+(locked?' disabled':'')+' onchange="savePred('+m.id+',\'g1\',this.value)">'+
+      '<div class="score-div">:</div>'+
+      '<input class="score-input" type="number" min="0" max="20" value="'+(pred?pred.g2:'')+'" placeholder="0"'+(locked?' disabled':'')+' onchange="savePred('+m.id+',\'g2\',this.value)">'+
+      '</div></div>';
+  }).join('');
+}
+
+function renderHistory(){
+  var done=matches.filter(function(m){return m.result;}).slice().reverse();
+  if(!done.length){document.getElementById('history-content').innerHTML='<div class="empty"><div class="empty-icon">📭</div><p>هنوز بازی‌ای تموم نشده</p></div>';return;}
+  document.getElementById('history-content').innerHTML=done.map(function(m){
+    var preds=state.players.map(function(name,i){
+      var pred=m.preds[i]; var pts=calcPts(pred,m.result);
+      return '<div class="pred-box '+(pts>0?'ok':'fail')+'"><div>'+name+'</div><div class="pred-score">'+(pred?pred.g1+':'+pred.g2:'—')+'</div><div class="pred-pts">'+(pts>0?'+'+pts+' امتیاز':'صفر')+'</div></div>';
+    }).join('');
+    return '<div class="hist-item"><div class="hist-match">'+m.f1+' '+m.t1+' vs '+m.t2+' '+m.f2+(m.autoResult?' <span class="auto-badge">🤖 خودکار</span>':'')+'</div><div class="hist-result">نتیجه: '+m.result.g1+' - '+m.result.g2+'</div><div class="preds-grid">'+preds+'</div></div>';
+  }).join('');
+}
+
+function renderSettings(){
+  document.getElementById('pw-settings').innerHTML=state.players.map(function(name,i){
+    return '<div class="input-group"><label class="input-label">پسورد '+name+'</label><input class="input-field" id="pw'+i+'" type="password" value="'+state.passwords[i]+'" placeholder="پسورد"></div>';
+  }).join('');
+  document.getElementById('settings-content').innerHTML=state.players.map(function(name,i){
+    return '<div class="input-group"><label class="input-label">بازیکن '+(i+1)+'</label><input class="input-field" id="pname'+i+'" value="'+name+'"></div>';
+  }).join('');
+}
+
+// ===== PASSWORD SYSTEM =====
+function requestPlayer(i){
+  if(i===state.activePlayer){ return; }
+  pwPlayerIdx=i;
+  document.getElementById('pw-modal-title').textContent='پسورد '+state.players[i];
+  document.getElementById('pw-input').value='';
+  document.getElementById('pw-error').textContent='';
+  document.getElementById('pw-modal').classList.add('open');
+  setTimeout(function(){document.getElementById('pw-input').focus();},200);
+  pwCallback=function(pw){
+    if(pw===state.passwords[i]){
+      state.activePlayer=i;
+      closePwModal();
+      renderPredict();
+    } else {
+      document.getElementById('pw-error').textContent='پسورد اشتباه است';
+    }
+  };
+}
+
+function confirmPw(){
+  if(pwCallback) pwCallback(document.getElementById('pw-input').value);
+}
+
+function closePwModal(){
+  document.getElementById('pw-modal').classList.remove('open');
+  pwCallback=null; pwPlayerIdx=-1;
+}
+
+document.getElementById('pw-input').addEventListener('keydown',function(e){
+  if(e.key==='Enter') confirmPw();
+});
+
+function savePred(mid,field,val){
+  if(isLocked(matches.find(function(x){return x.id===mid;}))){showToast('⛔ پیش‌بینی قفل شده');return;}
+  var m=matches.find(function(x){return x.id===mid;});
+  if(!m)return;
+  if(!m.preds[state.activePlayer]) m.preds[state.activePlayer]={g1:0,g2:0};
+  m.preds[state.activePlayer][field]=parseInt(val)||0;
+  db.ref('gameState/matches/'+matches.indexOf(m)+'/preds/'+state.activePlayer).set(m.preds[state.activePlayer]);
+  showToast('پیش‌بینی ذخیره شد ✓');
+}
+
+function savePws(){
+  state.passwords=state.passwords.map(function(_,i){return document.getElementById('pw'+i).value||'1234';});
+  db.ref('gameState/passwords').set(state.passwords);
+  showToast('پسوردها ذخیره شد ✓');
+}
+
+function savePlayers(){
+  state.players=state.players.map(function(_,i){return document.getElementById('pname'+i).value.trim()||'بازیکن '+(i+1);});
+  db.ref('gameState/players').set(state.players);
+  showToast('ذخیره شد ✓');
+  render();
+}
+
+function resetAll(){
+  if(!confirm('مطمئنی؟')) return;
+  db.ref('gameState').remove().then(function(){location.reload();});
+}
+
+function showToast(msg){
+  var t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(function(){t.classList.remove('show');},2500);
+}
+</script>
+</body>
+</html>
